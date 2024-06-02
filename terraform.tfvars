@@ -1,0 +1,5 @@
+hcloud_token = "your-hetzner-cloud-token" # or export TF_VARS_hcloud_token="your-hetzner-cloud-token"
+hetznerdns_token = "your-hetzner-dns-token" # or export TF_VARS_hetznerdns_token="your-hetzner-dns-token"
+dns_zone = "zeropatience.net"
+instance_type = "ccx23"
+operating_system = "ubuntu-24.04"
