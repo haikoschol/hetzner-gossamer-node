@@ -3,7 +3,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 apt update && apt upgrade -y
 
-PACKAGES="apt-transport-https ca-certificates lsb-release unattended-upgrades ufw curl wget gnupg git zsh tmux fzf fd-find lsd vim-nox golang caddy"
+PACKAGES="apt-transport-https ca-certificates lsb-release unattended-upgrades build-essential ufw curl wget gnupg git zsh tmux fzf fd-find lsd vim-nox golang caddy"
 apt install -y $PACKAGES
 
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
