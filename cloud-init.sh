@@ -33,42 +33,46 @@ ufw allow https
 ufw allow 7001
 ufw --force enable
 
-USERNAME=haiko
+export USERNAME=haiko
 
 useradd -g users -G docker,sudo -m -s /usr/bin/zsh ${USERNAME}
+echo "${USERNAME} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/${USERNAME}
 mkdir -m 0700 /home/${USERNAME}/.ssh
 cp /root/.ssh/authorized_keys /home/${USERNAME}/.ssh
 chown -R ${USERNAME}:users /home/${USERNAME}/.ssh
 systemctl restart ssh
-echo "${USERNAME} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/${USERNAME}
 sudo -u ${USERNAME} git clone https://github.com/${USERNAME}schol/dotfiles.git /home/${USERNAME}/dotfiles
 sudo -u ${USERNAME} /home/${USERNAME}/dotfiles/mklinks.sh
 
 
 sudo -u ${USERNAME} mkdir -p /home/${USERNAME}/.config/systemd/user
-${USERNAME} cat <<EOL > /home/${USERNAME}/.config/systemd/user/gossamer.service
+cat <<EOL > /home/${USERNAME}/gossamer.service
 [Unit]
 Description=Gossamer
 Documentation=https://github.com/ChainSafe/gossamer
-After=network.target network-online.target
-Requires=network-online.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
-Type=notify
-User=${USERNAME}
-Group=users
-ExecStart=/home/${USERNAME}/gossamer/bin/gossamer # TODO
-TimeoutStopSec=5s
+Type=simple
+ExecStart=/home/${USERNAME}/gossamer/bin/gossamer --base-path=/mnt/chain-state --chain=polkadot --log=global=info --prometheus-external --prometheus-port=9876 --pprof.enabled
+WorkingDirectory=/home/${USERNAME}/gossamer
+TimeoutStopSec=15s
 LimitNOFILE=1048576
 LimitNPROC=512
-PrivateTmp=true
-ProtectSystem=full
-AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 [Install]
 WantedBy=multi-user.target
 EOL
 
 chown -R /home/${USERNAME}/.config/systemd ${USERNAME}
+ln -s /home/${USERNAME}/gossamer.service /home/${USERNAME}/.config/systemd/user/gossamer.service
 sudo -u ${USERNAME} git clone https://github.com/ChainSafe/gossamer.git /home/${USERNAME}/gossamer
+sudo -u ${USERNAME} sed -i 's/gossamer/host.docker.internal/g' /home/${USERNAME}/gossamer/docker/prometheus/prometheus.yml
+
+mkfs.ext4 /dev/sdb
+mkdir -p /mnt/chain-state
+mount /dev/sdb /mnt/chain-state
+chown -R ${USERNAME}:users /mnt/chain-state
+
 reboot

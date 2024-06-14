@@ -16,4 +16,3 @@ After running `terraform apply` successfully, ssh into the box and run the follo
 
 * `docker compose build`
 * `docker compose up`
-

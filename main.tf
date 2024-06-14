@@ -1,38 +1,35 @@
 terraform {
   required_providers {
-    hcloud = {
-      source = "hetznercloud/hcloud"
-      version = "1.47.0"
-    }
-    hetznerdns = {
-      source = "timohirt/hetznerdns"
-      version = "2.1.0"
+    scaleway = {
+      source = "scaleway/scaleway"
     }
   }
+  required_version = ">= 0.13"
 }
 
-provider "hcloud" {
-  token = var.hcloud_token
-}
-
-provider "hetznerdns" {
-  apitoken = var.hetznerdns_token
-}
-
-variable "hcloud_token" {
-  description = "Hetzner Cloud API Token"
+variable "project_id" {
   type        = string
-  sensitive   = true
+  description = "Your project ID."
 }
 
-variable "hetznerdns_token" {
-  description = "Hetzner DNS API Token"
+variable "zone" {
   type        = string
-  sensitive   = true
+  description = "Scaleway Cloud zone to use."
+}
+
+variable "region" {
+  type        = string
+  description = "Scaleway Cloud region to use."
+}
+
+provider "scaleway" {
+  project_id = var.project_id
+  zone       = var.zone
+  region     = var.region
 }
 
 variable "dns_zone" {
-  description = "Hetzner DNS Zone"
+  description = "Scaleway DNS Zone"
   type        = string
 }
 
@@ -50,70 +47,62 @@ data "external" "ssh_key" {
   program = ["bash", "-c", "echo \"{\\\"output\\\": \\\"$(ssh-add -L | head -n 1)\\\"}\""]
 }
 
-resource "hcloud_ssh_key" "default" {
-  name       = "default-ssh-key"
+resource "scaleway_iam_ssh_key" "r00t" {
+  name       = "r00t"
   public_key = data.external.ssh_key.result.output
 }
 
-resource "hcloud_primary_ip" "primary_ipv4" {
-  name          = "primary_ipv4"
-  type          = "ipv4"
-  datacenter    = "hel1-dc2"
-  assignee_type = "server"
-  auto_delete   = false
+resource "scaleway_instance_ip" "primary_ipv4" {
+  type = "routed_ipv4"
 }
 
-resource "hcloud_primary_ip" "primary_ipv6" {
-  name          = "primary_ipv6"
-  type          = "ipv6"
-  datacenter    = "hel1-dc2"
-  assignee_type = "server"
-  auto_delete   = false
+resource "scaleway_instance_ip" "primary_ipv6" {
+  type = "routed_ipv6"
 }
 
-data "hetznerdns_zone" "zone" {
-  name = var.dns_zone
+resource "scaleway_domain_record" "wildcard_ipv4" {
+  dns_zone = var.dns_zone
+  name     = "*"
+  type     = "A"
+  data     = scaleway_instance_ip.primary_ipv4.address
+  ttl      = 300
 }
 
-resource "hetznerdns_record" "wildcard_ipv4" {
-  zone_id = data.hetznerdns_zone.zone.id
-  name    = "*"
-  type    = "A"
-  ttl     = 300
-  value   = hcloud_primary_ip.primary_ipv4.ip_address
+resource "scaleway_domain_record" "wildcard_ipv6" {
+  dns_zone = var.dns_zone
+  name     = "*"
+  type     = "AAAA"
+  data     = scaleway_instance_ip.primary_ipv6.address
+  ttl      = 300
 }
 
-resource "hetznerdns_record" "wildcard_ipv6" {
-  zone_id = data.hetznerdns_zone.zone.id
-  name    = "*"
-  type    = "AAAA"
-  ttl     = 300
-  value   = hcloud_primary_ip.primary_ipv6.ip_address
+resource "scaleway_instance_ip" "ip" {}
+
+resource "scaleway_instance_volume" "chain_state" {
+  type       = "b_ssd"
+  name       = "chain-state"
+  size_in_gb = 500
 }
 
-resource "hcloud_server" "server" {
-  name        = "gossamer-node"
-  server_type = var.instance_type
-  image       = var.operating_system
-  location    = "hel1"  
-  ssh_keys    = [hcloud_ssh_key.default.name]
+resource "scaleway_instance_server" "gossamer" {
+  type  = var.instance_type
+  image = var.operating_system
 
-  public_net {
-    ipv4_enabled = true
-    ipv4 = hcloud_primary_ip.primary_ipv4.id
-    ipv6_enabled = true
-    ipv6 = hcloud_primary_ip.primary_ipv6.id
+  enable_ipv6 = true
+  ip_ids = [scaleway_instance_ip.primary_ipv4.id, scaleway_instance_ip.primary_ipv6.id]
+  additional_volume_ids = [ scaleway_instance_volume.chain_state.id ]
+
+  user_data = {
+    cloud-init = file("${path.module}/cloud-init.sh")
   }
-
-  user_data = file("${path.module}/cloud-init.sh")
 }
 
 output "server_ipv4" {
   description = "The IPv4 address of the server"
-  value       = hcloud_primary_ip.primary_ipv4.ip_address
+  value       = scaleway_instance_ip.primary_ipv4.address
 }
 
 output "server_ipv6" {
   description = "The IPv6 address of the server"
-  value       = hcloud_primary_ip.primary_ipv6.ip_address
+  value       = scaleway_instance_ip.primary_ipv6.address
 }
