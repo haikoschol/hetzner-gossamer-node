@@ -43,6 +43,32 @@ systemctl restart ssh
 echo "${USERNAME} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/${USERNAME}
 sudo -u ${USERNAME} git clone https://github.com/${USERNAME}schol/dotfiles.git /home/${USERNAME}/dotfiles
 sudo -u ${USERNAME} /home/${USERNAME}/dotfiles/mklinks.sh
-sudo -u ${USERNAME} git clone https://github.com/ChainSafe/gossamer.git /home/${USERNAME}/gossamer
 
+
+sudo -u ${USERNAME} mkdir -p /home/${USERNAME}/.config/systemd/user
+${USERNAME} cat <<EOL > /home/${USERNAME}/.config/systemd/user/gossamer.service
+[Unit]
+Description=Gossamer
+Documentation=https://github.com/ChainSafe/gossamer
+After=network.target network-online.target
+Requires=network-online.target
+
+[Service]
+Type=notify
+User=${USERNAME}
+Group=users
+ExecStart=/home/${USERNAME}/gossamer/bin/gossamer # TODO
+TimeoutStopSec=5s
+LimitNOFILE=1048576
+LimitNPROC=512
+PrivateTmp=true
+ProtectSystem=full
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+chown -R /home/${USERNAME}/.config/systemd ${USERNAME}
+sudo -u ${USERNAME} git clone https://github.com/ChainSafe/gossamer.git /home/${USERNAME}/gossamer
 reboot
