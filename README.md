@@ -12,22 +12,8 @@ Grafana in the Caddyfile.
 If you don't use ssh-agent, you probably also want to change that part in [main.tf](./main.tf) to read the public key from `~/.ssh/id_rsa.pub` or
 whatever the filename is.
 
-Not all necessary steps are automated. After running `terraform apply` successfully, ssh into the box and
+After running `terraform apply` successfully, ssh into the box and run the following in `~/gossamer`
 
-* run `systemctl edit caddy.service` and paste:
+* `docker compose build`
+* `docker compose up`
 
-```
-[Service]
-EnvironmentFile=/etc/caddy/env
-ExecStart=
-ExecStart=/usr/bin/caddy run --adapter caddyfile --environ --config /etc/caddy/Caddyfile
-ExecReload=
-ExecReload=/usr/bin/caddy reload --adapter caddyfile --config /etc/caddy/Caddyfile --force
-```
-
-(the `ExecStart`/`ExecReload` stuff is a workaround for caddyserver/caddy#6363)
-
-* create the file `/etc/caddy/env` with the content `HETZNER_DNS_TOKEN=your-token`
-* restart Caddy (`systemctl restart caddy.service`)
-* run `docker compose build` and `docker compose up` in `~/gossamer`
-* profit

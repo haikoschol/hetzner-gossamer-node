@@ -19,20 +19,10 @@ mkdir -p $DOCKER_CONFIG/cli-plugins
 curl -SL https://github.com/docker/compose/releases/download/v2.27.1/docker-compose-linux-x86_64 -o $DOCKER_CONFIG/cli-plugins/docker-compose
 chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
 
-cd $HOME
-wget https://github.com/caddyserver/xcaddy/releases/download/v0.4.2/xcaddy_0.4.2_linux_amd64.deb
-dpkg -i xcaddy_0.4.2_linux_amd64.deb
-xcaddy build --with github.com/caddy-dns/hetzner
-cp caddy /usr/bin/caddy
-
 mkdir -p /etc/caddy
 cat <<EOL > /etc/caddy/Caddyfile
 grafana.zeropatience.net {
     reverse_proxy * localhost:3000
-
-    tls {
-        dns hetzner {env.HETZNER_DNS_TOKEN}
-    }
 }
 EOL
 
